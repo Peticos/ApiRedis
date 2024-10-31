@@ -41,24 +41,13 @@ def set_dayhint():
                 example: "Alimentação adequada para filhotes"
     responses:
       200:
-        description: Sucesso
+        description: A chave 'dicasDoDia' existe.
         schema:
-          type: array
-          items:
-            type: object
-            properties:
-              hint_text:
-                type: string
-                example: "Ofereça rações específicas para filhotes e evite comida caseira."
-              idHint:
-                type: integer
-                example: 8
-              link:
-                type: string
-                example: "http://link8.com"
-              title:
-                type: string
-                example: "Alimentação adequada para filhotes"
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Salvo com sucesso"
     """
     expiration_time = 24 * 60 * 60
 
@@ -70,7 +59,7 @@ def set_dayhint():
     r.expire("dicasDoDia", expiration_time)
 
     print([json.loads(dica) for dica in r.lrange("dicasDoDia", 0, -1)])  # Exibe os itens desserializados
-    return jsonify({"sim": "sim"}), 200
+    return jsonify({"message": "Salvo com sucesso"}), 200
 
 
 
