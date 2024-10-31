@@ -17,7 +17,7 @@ def set_dayhint():
     for item in dicas:
         r.lpush("dicasDoDia", json.dumps(item))
 
-    r.expire("dicasDoDia", 7)
+    r.expire("dicasDoDia", expiration_time)
 
     print([json.loads(dica) for dica in r.lrange("dicasDoDia", 0, -1)])  # Exibe os itens desserializados
     return jsonify({"sim": "sim"}), 200
