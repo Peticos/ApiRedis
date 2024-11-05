@@ -3,7 +3,7 @@ import redis, json
 from datetime import datetime
 import os
 from flasgger import Swagger
-from resourses.Post_Recommending_ML.recommendation import execute_feed
+from resourses.recommendation import execute_feed
 from pymongo import MongoClient
 from bson import ObjectId
 
