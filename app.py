@@ -25,7 +25,10 @@ collection = db['post']
 
 @app.route("/", methods=['GET'])
 def keep_alive():
-    """Endpoint para o keep alive 
+    '''
+    
+    ## Endpoint para o keep alive 
+
     ---
     tags:
       - Keep Alive
@@ -38,14 +41,17 @@ def keep_alive():
       404:
         description: A aplicacação não está ativa
         
-    """
+    '''
     return "ApiRedis está ativa"
 
 # Dicas do dia:
 
 @app.route('/dayhint/insert', methods=['POST'])
 def set_dayhint():
-    """Adiciona dicas do dia
+    '''
+    
+    ## Adiciona dicas do dia
+
     ---
     tags:
       - Dicas do Dia
@@ -79,7 +85,7 @@ def set_dayhint():
             message:
               type: string
               example: "Salvo com sucesso"
-    """
+    '''
     expiration_time = 24 * 60 * 60
 
     dicas = request.get_json()
@@ -94,7 +100,10 @@ def set_dayhint():
 
 @app.route('/dayhint', methods=['GET'])
 def get_dayhint():
-    """Resgatar dicas do dia
+    '''
+    
+    ## Resgatar dicas do dia
+
     ---
     tags:
       - Dicas do Dia
@@ -118,7 +127,7 @@ def get_dayhint():
               title:
                 type: string
                 example: "Alimentação adequada para filhotes"
-    """
+    '''
     dicas = r.lrange("dicasDoDia", 0, -1)  # Recupera todos os itens da lista
     dicas_decoded = [json.loads(dica) for dica in dicas]  # Desserializa cada item
 
@@ -126,7 +135,10 @@ def get_dayhint():
 
 @app.route('/dayhint/check', methods=['GET'])
 def check_dayhint_exists():
-    """Verifica se a chave 'dicasDoDia' existe no Redis
+    '''
+    
+    ## Verifica se a chave 'dicasDoDia' existe no Redis
+
     ---
     tags:
       - Dicas do Dia
@@ -147,7 +159,7 @@ def check_dayhint_exists():
             message:
               type: string
               example: "A chave 'dicasDoDia' não existe."
-    """
+    '''
     # Verifica se a chave "dicasDoDia" existe no Redis
     exists = r.exists("dicasDoDia")
 
@@ -159,7 +171,10 @@ def check_dayhint_exists():
     
 @app.route('/dayhint', methods=['DELETE'])
 def delete_dayhint():
-    """Apaga todas as dicas do dia
+    '''
+    
+    ## Apaga todas as dicas do dia
+
     ---
     tags:
       - Dicas do Dia
@@ -180,7 +195,7 @@ def delete_dayhint():
             message:
               type: string
               example: "Nenhuma dica para apagar."
-    """
+    '''
     # Verifica se a chave "dicasDoDia" existe
     if r.exists("dicasDoDia"):
         r.delete("dicasDoDia")
@@ -191,8 +206,9 @@ def delete_dayhint():
 # Feed
 @app.route('/feed/newfeed/<user_id>', methods=['GET'])
 def set_new_user_feed(user_id):
-  """
-    Adiciona novos posts ao feed do usuário especificado.
+  '''
+    
+    ## Adiciona novos posts ao feed do usuário especificado.
 
     ---
     tags:
@@ -204,7 +220,7 @@ def set_new_user_feed(user_id):
         description: username do usuário cujo feed será atualizado.
         schema:
           type: string
-    """
+    '''
   
   execute_feed(user_id=user_id)
 
@@ -215,8 +231,9 @@ def set_new_user_feed(user_id):
 
 @app.route('/feed/<user_id>', methods=['GET'])
 def get_user_feed(user_id):
-  """
-    Retorna o feed do usuário especificado.
+  '''
+    
+    ## Retorna o feed do usuário especificado.
 
     ---
     tags:
@@ -228,7 +245,7 @@ def get_user_feed(user_id):
         description: username do usuário cujo feed será buscado.
         schema:
           type: string
-  """
+  '''
   
   user_feed_key = f"{user_id}"
 
@@ -242,8 +259,9 @@ def get_user_feed(user_id):
 
 @app.route('/like/<post_id>/<username>', methods=['POST'])
 def like_post(post_id, username):
-  """
-    Da like no post no feed do usuário especificado.
+  '''
+    
+    ## Da like no post no feed do usuário especificado.
 
     ---
     tags:
@@ -261,7 +279,7 @@ def like_post(post_id, username):
         description: id do post que vai ser curtido
         schema:
           type: string
-  """
+  '''
   feed_key = f"{username}"
 
   feed_items = r.lrange(feed_key, 0, -1)
@@ -291,8 +309,9 @@ def like_post(post_id, username):
 
 @app.route('/dislike/<post_id>/<username>', methods=['POST'])
 def dislike_post(post_id, username):
-  """
-    Tira like no post no feed do usuário especificado.
+  '''
+    
+    ## Tira like no post no feed do usuário especificado.
 
     ---
     tags:
@@ -310,7 +329,7 @@ def dislike_post(post_id, username):
         description: id do post que vai ser curtido
         schema:
           type: string
-  """
+  '''
   feed_key = f"{username}"
 
   feed_items = r.lrange(feed_key, 0, -1)

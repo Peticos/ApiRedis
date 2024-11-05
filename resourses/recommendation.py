@@ -28,9 +28,9 @@ def get_df():
 ## Função para transformar o DataFrame em uma matriz de interação de usuários e posts
 def matrix():
     df, collection = get_df()
-    
-    print(df)
 
+    init_df = df
+    
     # Criação do DataFrame de interações
     dict_df = {
         'user_id': [],
@@ -45,11 +45,7 @@ def matrix():
                     dict_df['user_id'].append(value)
                     dict_df['post_id'].append(str(df['_id'].iloc[i]))
                     dict_df['interaction'].append(column[:-1])
-            else:
-                dict_df['user_id'].append(None)
-                dict_df['post_id'].append(str(df['_id'].iloc[i]))
-                dict_df['interaction'].append(None)
-                
+    
     df = pd.DataFrame(dict_df)
 
     # Mudando o DataFrame para quantidade de interações (quanto mais a pessoa interagiu, mais ela gostou)
@@ -57,7 +53,12 @@ def matrix():
     df = df.loc[df['user_id'] != '']
 
     # Criação da matriz de interação por usuário e post
-    return df.pivot_table(index='user_id', columns='post_id', values='interaction', fill_value=0), collection
+    df = df.pivot_table(index='user_id', columns='post_id', values='interaction', fill_value=0)
+    
+    for post in init_df.loc[(init_df['likes'].str.len() == 0) & (init_df['shares'].str.len() == 0), '_id']:
+        df[str(post)] = 0
+    
+    return df, collection
 
 ## Função para calcular a propensão
 def calculate_propensity(user_id, user_item_matrix, knn):
@@ -122,8 +123,9 @@ def execute_feed(user_id):
     # Filtra os 10 primeiros caso existam 10 sobrando, caso não, retorna todos os valores
     recommended_posts = recommended_posts[:min(10, len(recommended_posts))]
     
-    recommended_posts = list(collection.find({'_id': {'$in': [str(id) for id in recommended_posts]+[ObjectId(id) for id in recommended_posts]}}))
+    recommended_posts = list(collection.find({'_id': {'$in': [ObjectId(id) for id in recommended_posts]}}))
     
+    formated_posts = []
     for post in recommended_posts:
         # Verifica e converte '_id' para string
         post['_id'] = str(post['_id'])
@@ -131,11 +133,14 @@ def execute_feed(user_id):
         # Formata a data se o campo 'post_date' existir e for do tipo datetime
         if 'post_date' in post and isinstance(post['post_date'], datetime):
             post['post_date'] = post['post_date'].strftime('%Y-%m-%d %H:%M:%S')
+        formated_posts.append(json.dumps(post))
 
     # Serializar para JSON após garantir que todos os posts têm _id como string
-    recommended_posts = [json.dumps(post) for post in recommended_posts]
-
+    recommended_posts = formated_posts
+    
     # Remove a lista antiga e adiciona a nova no Redis
     r.delete(user_id)
-    r.rpush(seen_name, *[value["_id"] for value in (json.loads(item) for item in recommended_posts)])
-    r.rpush(user_id, *recommended_posts)
+    for post in recommended_posts:
+        r.lpush(user_id, post)
+        id = str(json.loads(post)["_id"])
+        r.lpush(seen_name, id)
