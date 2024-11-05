@@ -1,3 +1,6 @@
 Flask
 redis
 flasgger
+pandas
+pymongo
+scikit-learn

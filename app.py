@@ -3,6 +3,9 @@ import redis, json
 from datetime import datetime
 import os
 from flasgger import Swagger
+from resourses.Post_Recommending_ML.recommendation import execute_feed
+from pymongo import MongoClient
+from bson import ObjectId
 
 
 app = Flask(__name__)
@@ -10,7 +13,13 @@ swagger = Swagger(app)
 
 
 redis_url = 'rediss://default:AVNS_QnEs5Fi6ZSzEKrXrgLJ@peticos-cache-bhavatechteam-a076.h.aivencloud.com:17964'
-r = redis.Redis.from_url(url=redis_url, ssl_cert_reqs=None)
+r = redis.from_url(url=redis_url, decode_responses = True)
+
+## Conexão
+uri = 'mongodb+srv://admin:X955pJ8YkBMrVMG@peticos.ajboj.mongodb.net/'
+client = MongoClient(uri)
+db = client['Peticos']
+collection = db['post']
 
 # Keep Alive:
 
@@ -147,7 +156,6 @@ def check_dayhint_exists():
         return jsonify({"message": "A chave 'dicasDoDia' existe."}), 200
     else:
         return jsonify({"message": "A chave 'dicasDoDia' não existe."}), 404
-
     
 @app.route('/dayhint', methods=['DELETE'])
 def delete_dayhint():
@@ -181,153 +189,157 @@ def delete_dayhint():
         return jsonify({"message": "Nenhuma dica para apagar."}), 404
 
 # Feed
-@app.route('/feed/<user_id>', methods=['POST'])
-def set_user_feed(user_id):
-    """Adiciona uma lista de objetos ao feed de um usuário específico
+@app.route('/feed/newfeed/<user_id>', methods=['GET'])
+def set_new_user_feed(user_id):
+  """
+    Adiciona novos posts ao feed do usuário especificado.
+
     ---
     tags:
       - Feed
     parameters:
       - name: user_id
         in: path
-        type: string
         required: true
-        description: ID do usuário para personalizar o feed
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: array
-            items:
-              type: object
-              properties:
-                id:
-                  type: string
-                  example: "post_1"
-                title:
-                  type: string
-                  example: "Novo Post"
-                content:
-                  type: string
-                  example: "Conteúdo do post aqui."
-    responses:
-      200:
-        description: Feed adicionado com sucesso
+        description: username do usuário cujo feed será atualizado.
         schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Feed adicionado com sucesso."
-      400:
-        description: Erro nos dados enviados
+          type: string
     """
-    feed_items = request.get_json()
+  
+  execute_feed(user_id=user_id)
 
-    user_feed_key = f"feed:{user_id}"
+  feed_items = r.lrange(user_id, 0, -1)
+  feed_decoded = [json.loads(item) for item in feed_items]
 
-    old_feed= get_user_feed(user_id=f"{user_id}")
-
-    for item in feed_items:
-        r.lpush(user_feed_key, json.dumps(item))
-
-    return old_feed
+  return jsonify(feed_decoded), 200
 
 @app.route('/feed/<user_id>', methods=['GET'])
 def get_user_feed(user_id):
-    """Recupera o feed de um usuário específico
+  """
+    Retorna o feed do usuário especificado.
+
     ---
     tags:
       - Feed
     parameters:
       - name: user_id
         in: path
-        type: string
         required: true
-        description: ID do usuário para personalizar o feed
-    responses:
-      200:
-        description: Retorna o feed do usuário
+        description: username do usuário cujo feed será buscado.
         schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                example: "post_1"
-              title:
-                type: string
-                example: "Novo Post"
-              content:
-                type: string
-                example: "Conteúdo do post aqui."
-      404:
-        description: Nenhum feed encontrado para o usuário
-    """
-    user_feed_key = f"feed:{user_id}"
+          type: string
+  """
+  
+  user_feed_key = f"{user_id}"
 
-    if not r.exists(user_feed_key):
-        return jsonify({"message": "Nenhum feed encontrado para este usuário."}), 404
+  if not r.exists(user_feed_key):
+    execute_feed(user_id=user_id)
+  
+  feed_items = r.lrange(user_feed_key, 0, -1)
+  feed_decoded = [json.loads(item) for item in feed_items]
 
-    feed_items = r.lrange(user_feed_key, 0, -1)
-    feed_decoded = [json.loads(item) for item in feed_items]
-
-    return jsonify(feed_decoded), 200
+  return jsonify(feed_decoded), 200
 
 @app.route('/like/<post_id>/<username>', methods=['POST'])
 def like_post(post_id, username):
-    feed_key = f"feed:{username}"
+  """
+    Da like no post no feed do usuário especificado.
 
-    feed_items = r.lrange(feed_key, 0, -1)
-    feed_decoded = [json.loads(item) for item in feed_items]    
+    ---
+    tags:
+      - Feed
+    parameters:
+      - name: username
+        in: path
+        required: true
+        description: username do usuário cujo feed será buscado.
+        schema:
+          type: string
+      - name: post_id
+        in: path
+        required: true
+        description: id do post que vai ser curtido
+        schema:
+          type: string
+  """
+  feed_key = f"{username}"
 
-    post_found = False
-    for post in feed_decoded:
-        if post['id'] == post_id:
-            post_found = True
-            if username not in post['likes']:
-                post['likes'].append(username)
-                break
+  feed_items = r.lrange(feed_key, 0, -1)
+  feed_decoded = [json.loads(item) for item in feed_items]    
 
-    if not post_found:
-        return jsonify({"message": "Post não encontrado."}), 404
-    
-    delete_feed(user_id=username)
-    
-    for item in feed_decoded[::-1]:
-            r.lpush(feed_key, json.dumps(item))
+  post_found = False
+  for post in feed_decoded:
+    if post['_id'] == post_id:
+        post_found = True
+        if username not in post['likes']:
+            post['likes'].append(username)
+            break
 
-    return jsonify({"message": "Like adicionado com sucesso."}), 200
+  if not post_found:
+    return jsonify({"message": "Post não encontrado."}), 404
+  
+  delete_feed(user_id=username)
+  
+  for item in feed_decoded[::-1]:
+    r.lpush(feed_key, json.dumps(item))
+
+
+  collection.update_one({"_id":ObjectId(post_id)}, {'$addToSet': {'likes': username}})
+
+
+  return jsonify({"message": "Like adicionado com sucesso."}), 200
 
 @app.route('/dislike/<post_id>/<username>', methods=['POST'])
 def dislike_post(post_id, username):
-    feed_key = f"feed:{username}"
+  """
+    Tira like no post no feed do usuário especificado.
 
-    feed_items = r.lrange(feed_key, 0, -1)
-    feed_decoded = [json.loads(item) for item in feed_items]    
+    ---
+    tags:
+      - Feed
+    parameters:
+      - name: username
+        in: path
+        required: true
+        description: username do usuário cujo feed será buscado.
+        schema:
+          type: string
+      - name: post_id
+        in: path
+        required: true
+        description: id do post que vai ser curtido
+        schema:
+          type: string
+  """
+  feed_key = f"{username}"
 
-    post_found = False
-    for post in feed_decoded:
-        if post['id'] == post_id:
-            post_found = True
-            if username in post['likes']:
-                post['likes'].remove(username)
-                break
+  feed_items = r.lrange(feed_key, 0, -1)
+  feed_decoded = [json.loads(item) for item in feed_items]    
 
-    if not post_found:
-        return jsonify({"message": "Post não encontrado."}), 404
-    
-    delete_feed(user_id=username)
-    
-    for item in feed_decoded[::-1]:
-            r.lpush(feed_key, json.dumps(item))
+  post_found = False
+  for post in feed_decoded:
+      if post['_id'] == post_id:
+          post_found = True
+          if username in post['likes']:
+              post['likes'].remove(username)
+              break
 
-    return jsonify({"message": "Like remmovido com sucesso."}), 200
+  if not post_found:
+      return jsonify({"message": "Post não encontrado."}), 404
+  
+  delete_feed(user_id=username)
+  
+  for item in feed_decoded[::-1]:
+    r.lpush(feed_key, json.dumps(item))
+
+
+  collection.update_one({"_id": ObjectId(post_id)}, {'$pull': {'likes': username}})
+
+  return jsonify({"message": "Like remmovido com sucesso."}), 200
 
 @app.route('/delete_feed/<user_id>', methods=['DELETE'])
 def delete_feed(user_id):
-    user_feed_key = f"feed:{user_id}"
+    user_feed_key = f"{user_id}"
 
     # Verifica se a chave existe
     if r.exists(user_feed_key):
