@@ -28,8 +28,6 @@ def get_df():
 ## Função para transformar o DataFrame em uma matriz de interação de usuários e posts
 def matrix():
     df, collection = get_df()
-    
-    print(df)
 
     # Criação do DataFrame de interações
     dict_df = {
@@ -122,8 +120,9 @@ def execute_feed(user_id):
     # Filtra os 10 primeiros caso existam 10 sobrando, caso não, retorna todos os valores
     recommended_posts = recommended_posts[:min(10, len(recommended_posts))]
     
-    recommended_posts = list(collection.find({'_id': {'$in': [str(id) for id in recommended_posts]+[ObjectId(id) for id in recommended_posts]}}))
+    recommended_posts = list(collection.find({'_id': {'$in': [ObjectId(id) for id in recommended_posts]}}))
     
+    formated_posts = []
     for post in recommended_posts:
         # Verifica e converte '_id' para string
         post['_id'] = str(post['_id'])
@@ -131,11 +130,14 @@ def execute_feed(user_id):
         # Formata a data se o campo 'post_date' existir e for do tipo datetime
         if 'post_date' in post and isinstance(post['post_date'], datetime):
             post['post_date'] = post['post_date'].strftime('%Y-%m-%d %H:%M:%S')
+        formated_posts.append(json.dumps(post))
 
     # Serializar para JSON após garantir que todos os posts têm _id como string
-    recommended_posts = [json.dumps(post) for post in recommended_posts]
-
+    recommended_posts = formated_posts
+    print(type(recommended_posts), recommended_posts)
     # Remove a lista antiga e adiciona a nova no Redis
     r.delete(user_id)
-    r.rpush(seen_name, *[value["_id"] for value in (json.loads(item) for item in recommended_posts)])
-    r.rpush(user_id, *recommended_posts)
+    for post in recommended_posts:
+        r.lpush(user_id, post)
+        id = str(json.loads(post)["_id"])
+        r.lpush(seen_name, id)
