@@ -2,7 +2,9 @@ from flask import Flask, jsonify, request
 import redis, json
 from datetime import datetime
 import os
+import sys
 from flasgger import Swagger
+sys.path.append(os.path.abspath("resources"))
 from resourses.Post_Recommending_ML.recommendation import execute_feed
 from pymongo import MongoClient
 from bson import ObjectId
