@@ -29,6 +29,8 @@ def get_df():
 def matrix():
     df, collection = get_df()
 
+    init_df = df
+    
     # Criação do DataFrame de interações
     dict_df = {
         'user_id': [],
@@ -43,11 +45,7 @@ def matrix():
                     dict_df['user_id'].append(value)
                     dict_df['post_id'].append(str(df['_id'].iloc[i]))
                     dict_df['interaction'].append(column[:-1])
-            else:
-                dict_df['user_id'].append(None)
-                dict_df['post_id'].append(str(df['_id'].iloc[i]))
-                dict_df['interaction'].append(None)
-                
+    
     df = pd.DataFrame(dict_df)
 
     # Mudando o DataFrame para quantidade de interações (quanto mais a pessoa interagiu, mais ela gostou)
@@ -55,7 +53,12 @@ def matrix():
     df = df.loc[df['user_id'] != '']
 
     # Criação da matriz de interação por usuário e post
-    return df.pivot_table(index='user_id', columns='post_id', values='interaction', fill_value=0), collection
+    df = df.pivot_table(index='user_id', columns='post_id', values='interaction', fill_value=0)
+    
+    for post in init_df.loc[(init_df['likes'].str.len() == 0) & (init_df['shares'].str.len() == 0), '_id']:
+        df[str(post)] = 0
+    
+    return df, collection
 
 ## Função para calcular a propensão
 def calculate_propensity(user_id, user_item_matrix, knn):
@@ -134,7 +137,7 @@ def execute_feed(user_id):
 
     # Serializar para JSON após garantir que todos os posts têm _id como string
     recommended_posts = formated_posts
-    print(type(recommended_posts), recommended_posts)
+    
     # Remove a lista antiga e adiciona a nova no Redis
     r.delete(user_id)
     for post in recommended_posts:
