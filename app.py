@@ -5,6 +5,7 @@ import os
 from flasgger import Swagger
 from resourses.Post_Recommending_ML.recommendation import execute_feed
 from pymongo import MongoClient
+from bson import ObjectId
 
 
 app = Flask(__name__)
@@ -12,7 +13,7 @@ swagger = Swagger(app)
 
 
 redis_url = 'rediss://default:AVNS_QnEs5Fi6ZSzEKrXrgLJ@peticos-cache-bhavatechteam-a076.h.aivencloud.com:17964'
-r = redis.Redis.from_url(url=redis_url, ssl_cert_reqs=None)
+r = redis.from_url(url=redis_url, decode_responses = True)
 
 ## Conexão
 uri = 'mongodb+srv://admin:X955pJ8YkBMrVMG@peticos.ajboj.mongodb.net/'
@@ -204,7 +205,7 @@ def set_new_user_feed(user_id):
         schema:
           type: string
     """
-
+  
   execute_feed(user_id=user_id)
 
   feed_items = r.lrange(user_id, 0, -1)
@@ -268,7 +269,7 @@ def like_post(post_id, username):
 
   post_found = False
   for post in feed_decoded:
-    if post['id'] == post_id:
+    if post['_id'] == post_id:
         post_found = True
         if username not in post['likes']:
             post['likes'].append(username)
@@ -281,6 +282,10 @@ def like_post(post_id, username):
   
   for item in feed_decoded[::-1]:
     r.lpush(feed_key, json.dumps(item))
+
+
+  collection.update_one({"_id":ObjectId(post_id)}, {'$addToSet': {'likes': username}})
+
 
   return jsonify({"message": "Like adicionado com sucesso."}), 200
 
@@ -313,7 +318,7 @@ def dislike_post(post_id, username):
 
   post_found = False
   for post in feed_decoded:
-      if post['id'] == post_id:
+      if post['_id'] == post_id:
           post_found = True
           if username in post['likes']:
               post['likes'].remove(username)
@@ -326,6 +331,9 @@ def dislike_post(post_id, username):
   
   for item in feed_decoded[::-1]:
     r.lpush(feed_key, json.dumps(item))
+
+
+  collection.update_one({"_id": ObjectId(post_id)}, {'$pull': {'likes': username}})
 
   return jsonify({"message": "Like remmovido com sucesso."}), 200
 
