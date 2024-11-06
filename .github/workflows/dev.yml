@@ -3,6 +3,7 @@ name: PipelineFlask
 on:
   push:
     branches: [ "DEV" ]
+    
 jobs:
   build:
     runs-on: ubuntu-latest
