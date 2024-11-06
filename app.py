@@ -368,6 +368,17 @@ def delete_feed(user_id):
         return jsonify({"message": "Feed não encontrado."}), 404
 
 
+@app.route('/deleteseen/<user_id>', methods=['DELETE'])
+def delete(user_id):
+    user_feed_key = f"{user_id}.seen"
+
+    # Verifica se a chave existe
+    if r.exists(user_feed_key):
+        r.delete(user_feed_key)
+        return jsonify({"message": "Feed deletado com sucesso."}), 200
+    else:
+        return jsonify({"message": "Feed não encontrado."}), 404
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

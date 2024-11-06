@@ -4,3 +4,4 @@ flasgger
 pandas
 pymongo
 scikit-learn
+pytest 
