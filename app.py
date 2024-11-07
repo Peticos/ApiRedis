@@ -227,6 +227,11 @@ def set_new_user_feed(user_id):
   feed_items = r.lrange(user_id, 0, -1)
   feed_decoded = [json.loads(item) for item in feed_items]
 
+  if feed_decoded==[]:
+    delete_seen(user_id=user_id)
+    return set_new_user_feed(user_id=user_id)
+
+
   return jsonify(feed_decoded), 200
 
 @app.route('/feed/<user_id>', methods=['GET'])
@@ -367,6 +372,17 @@ def delete_feed(user_id):
     else:
         return jsonify({"message": "Feed não encontrado."}), 404
 
+
+@app.route('/deleteseen/<user_id>', methods=['DELETE'])
+def delete_seen(user_id):
+    user_feed_key = f"{user_id}.seen"
+
+    # Verifica se a chave existe
+    if r.exists(user_feed_key):
+        r.delete(user_feed_key)
+        return jsonify({"message": "Feed deletado com sucesso."}), 200
+    else:
+        return jsonify({"message": "Feed não encontrado."}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

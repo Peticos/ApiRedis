@@ -16,7 +16,7 @@ def get_df():
     # Leitura dos dados
     ## Conexão
     uri = 'mongodb+srv://admin:X955pJ8YkBMrVMG@peticos.ajboj.mongodb.net/'
-    client = MongoClient(uri)
+    client = MongoClient(uri,serverSelectionTimeoutMS=30000 )
     db = client['Peticos']
     collection = db['post']
     
